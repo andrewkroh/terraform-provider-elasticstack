@@ -39,6 +39,12 @@ func GetConnectionSchema(keyName string, isProviderConfiguration bool) *schema.S
 		Optional:    true,
 		Elem: &schema.Resource{
 			Schema: map[string]*schema.Schema{
+				"url": {
+					Description: "Kibana URL",
+					Type:        schema.TypeString,
+					Optional:    true,
+					DefaultFunc: withEnvDefault("KIBANA_URL", nil),
+				},
 				"username": {
 					Description:  "Username to use for API authentication to Elasticsearch.",
 					Type:         schema.TypeString,

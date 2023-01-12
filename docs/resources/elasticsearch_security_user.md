@@ -90,6 +90,7 @@ Optional:
 - `key_data` (String, Sensitive) PEM encoded private key for client auth
 - `key_file` (String) Path to a file containing the PEM encoded private key for client auth
 - `password` (String, Sensitive) Password to use for API authentication to Elasticsearch.
+- `url` (String) Kibana URL
 - `username` (String) Username to use for API authentication to Elasticsearch.
 
 ## Import

@@ -86,6 +86,7 @@ provider "elasticstack" {
 ### Optional
 
 - `elasticsearch` (Block List, Max: 1) Elasticsearch connection configuration block. (see [below for nested schema](#nestedblock--elasticsearch))
+- `kibana` (Block List, Max: 1) Elasticsearch connection configuration block. (see [below for nested schema](#nestedblock--kibana))
 
 <a id="nestedblock--elasticsearch"></a>
 ### Nested Schema for `elasticsearch`
@@ -102,4 +103,24 @@ Optional:
 - `key_data` (String, Sensitive) PEM encoded private key for client auth
 - `key_file` (String) Path to a file containing the PEM encoded private key for client auth
 - `password` (String, Sensitive) Password to use for API authentication to Elasticsearch.
+- `url` (String) Kibana URL
+- `username` (String) Username to use for API authentication to Elasticsearch.
+
+
+<a id="nestedblock--kibana"></a>
+### Nested Schema for `kibana`
+
+Optional:
+
+- `api_key` (String, Sensitive) API Key to use for authentication to Elasticsearch
+- `ca_data` (String) PEM-encoded custom Certificate Authority certificate
+- `ca_file` (String) Path to a custom Certificate Authority certificate
+- `cert_data` (String) PEM encoded certificate for client auth
+- `cert_file` (String) Path to a file containing the PEM encoded certificate for client auth
+- `endpoints` (List of String, Sensitive) A comma-separated list of endpoints where the terraform provider will point to, this must include the http(s) schema and port number.
+- `insecure` (Boolean) Disable TLS certificate validation
+- `key_data` (String, Sensitive) PEM encoded private key for client auth
+- `key_file` (String) Path to a file containing the PEM encoded private key for client auth
+- `password` (String, Sensitive) Password to use for API authentication to Elasticsearch.
+- `url` (String) Kibana URL
 - `username` (String) Username to use for API authentication to Elasticsearch.

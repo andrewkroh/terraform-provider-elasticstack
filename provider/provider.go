@@ -7,11 +7,15 @@ import (
 	"github.com/elastic/terraform-provider-elasticstack/internal/elasticsearch/ingest"
 	"github.com/elastic/terraform-provider-elasticstack/internal/elasticsearch/logstash"
 	"github.com/elastic/terraform-provider-elasticstack/internal/elasticsearch/security"
+	"github.com/elastic/terraform-provider-elasticstack/internal/kibana/fleet"
 	providerSchema "github.com/elastic/terraform-provider-elasticstack/internal/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-const esKeyName = "elasticsearch"
+const (
+	esKeyName     = "elasticsearch"
+	kibanaKeyName = "kibana"
+)
 
 func init() {
 	// Set descriptions to support markdown syntax, this will be used in document generation
@@ -23,7 +27,8 @@ func New(version string) *schema.Provider {
 	p := &schema.Provider{
 
 		Schema: map[string]*schema.Schema{
-			esKeyName: providerSchema.GetConnectionSchema(esKeyName, true),
+			esKeyName:     providerSchema.GetConnectionSchema(esKeyName, true),
+			kibanaKeyName: providerSchema.GetConnectionSchema(kibanaKeyName, true),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"elasticstack_elasticsearch_ingest_processor_append":            ingest.DataSourceProcessorAppend(),
@@ -86,6 +91,9 @@ func New(version string) *schema.Provider {
 			"elasticstack_elasticsearch_snapshot_lifecycle":    cluster.ResourceSlm(),
 			"elasticstack_elasticsearch_snapshot_repository":   cluster.ResourceSnapshotRepository(),
 			"elasticstack_elasticsearch_script":                cluster.ResourceScript(),
+			"elasticstack_kibana_fleet_enrollment_api_key":     fleet.EnrollmentAPIKey(),
+			"elasticstack_kibana_fleet_agent_policy":           fleet.AgentPolicy(),
+			"elasticstack_kibana_fleet_package_policy":         fleet.PackagePolicy(),
 		},
 	}
 

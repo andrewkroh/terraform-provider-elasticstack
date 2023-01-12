@@ -1,7 +1,7 @@
 .DEFAULT_GOAL = help
 SHELL := /bin/bash
 
-VERSION ?= 0.5.0
+VERSION ?= 0.5.1
 
 NAME = elasticstack
 BINARY = terraform-provider-${NAME}
@@ -56,7 +56,7 @@ clean: ## Remove built binary
 
 
 .PHONY: install
-install: build ## Install built provider into the local terraform cache
+install: build-ci ## Install built provider into the local terraform cache
 	mkdir -p ~/.terraform.d/plugins/registry.terraform.io/elastic/${NAME}/${VERSION}/${MARCH}
 	mv ${BINARY} ~/.terraform.d/plugins/registry.terraform.io/elastic/${NAME}/${VERSION}/${MARCH}
 
