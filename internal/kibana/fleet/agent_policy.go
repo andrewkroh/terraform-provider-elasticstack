@@ -4,7 +4,8 @@ import (
 	"context"
 
 	"github.com/elastic/terraform-provider-elasticstack/internal/clients"
-	"github.com/elastic/terraform-provider-elasticstack/internal/clients/fleet"
+	"github.com/elastic/terraform-provider-elasticstack/internal/clients/kibana/fleet"
+	"github.com/elastic/terraform-provider-elasticstack/internal/clients/kibana/fleet/fleetapi"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -18,13 +19,13 @@ func AgentPolicy() *schema.Resource {
 			ForceNew:    true,
 		},
 		"namespace": {
-			Description: "Namespace",
+			Description: "Default namespace for data streams.",
 			Type:        schema.TypeString,
 			Required:    true,
 			ForceNew:    true,
 		},
 		"description": {
-			Description: "Description of the policy.",
+			Description: "Description of the policy and how it is used.",
 			Type:        schema.TypeString,
 			Required:    true,
 			ForceNew:    true,
@@ -34,7 +35,7 @@ func AgentPolicy() *schema.Resource {
 	return &schema.Resource{
 		Description: "Creates a new Fleet agent policy.",
 
-		CreateContext: resourceAgentPolicyPost,
+		CreateContext: resourceAgentPolicyCreate,
 		DeleteContext: resourceAgentPolicyDelete,
 		ReadContext:   resourceAgentPolicyRead,
 
@@ -52,48 +53,48 @@ func resourceAgentPolicyRead(ctx context.Context, d *schema.ResourceData, meta i
 		return diags
 	}
 
-	policy, diags := client.GetFleetClient().GetAgentPolicy(ctx, d.Id())
+	agentPolicy, diags := fleet.ReadAgentPolicy(ctx, client.GetKibanaClient(), d.Id())
 	if diags.HasError() {
 		return diags
 	}
 
 	// Not found.
-	if policy == nil {
+	if agentPolicy == nil {
 		d.SetId("")
 		return nil
 	}
 
-	if err := d.Set("name", policy.Name); err != nil {
+	if err := d.Set("name", agentPolicy.Name); err != nil {
 		return diag.FromErr(err)
 	}
-	if err := d.Set("namespace", policy.Namespace); err != nil {
+	if err := d.Set("namespace", agentPolicy.Namespace); err != nil {
 		return diag.FromErr(err)
 	}
-	if err := d.Set("description", policy.Description); err != nil {
+	if err := d.Set("description", agentPolicy.Description); err != nil {
 		return diag.FromErr(err)
 	}
 
 	return nil
 }
 
-func resourceAgentPolicyPost(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceAgentPolicyCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client, diags := clients.NewApiClient(d, meta)
 	if diags.HasError() {
 		return diags
 	}
 
-	params := fleet.CreateAgentPolicyJSONRequestBody{
+	newAgentPolicy := fleetapi.NewAgentPolicy{
 		Name:        d.Get("name").(string),
 		Namespace:   d.Get("namespace").(string),
 		Description: ptrTo(d.Get("description").(string)),
 	}
 
-	policy, diags := client.GetFleetClient().PostAgentPolicy(ctx, params)
+	agentPolicy, diags := fleet.CreateAgentPolicy(ctx, client.GetKibanaClient(), newAgentPolicy)
 	if diags.HasError() {
 		return diags
 	}
 
-	d.SetId(policy.Id)
+	d.SetId(agentPolicy.Id)
 	return resourceAgentPolicyRead(ctx, d, meta)
 }
 
@@ -103,9 +104,10 @@ func resourceAgentPolicyDelete(ctx context.Context, d *schema.ResourceData, meta
 		return diags
 	}
 
-	return client.GetFleetClient().DeleteAgentPolicy(ctx, d.Id())
-}
+	if diags := fleet.DeleteAgentPolicy(ctx, client.GetKibanaClient(), d.Id()); diags.HasError() {
+		return diags
+	}
 
-func ptrTo[T any](in T) *T {
-	return &in
+	d.SetId("")
+	return nil
 }

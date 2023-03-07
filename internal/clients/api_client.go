@@ -9,8 +9,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/elastic/go-elasticsearch/v7"
-	"github.com/elastic/terraform-provider-elasticstack/internal/clients/fleet"
+	"github.com/elastic/terraform-provider-elasticstack/internal/clients/kibana"
 	"github.com/elastic/terraform-provider-elasticstack/internal/utils"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -56,24 +57,23 @@ func (c *CompositeId) String() string {
 
 type ApiClient struct {
 	es      *elasticsearch.Client
-	fleet   *fleet.FleetClient
+	kibana  *kibana.Client
 	version string
 }
 
 func NewApiClientFunc(version string) func(context.Context, *schema.ResourceData) (interface{}, diag.Diagnostics) {
 	return func(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
-		apiClient, diags := newEsApiClient(d, "elasticsearch", version, true)
+		esClient, diags := newEsApiClient(d, "elasticsearch", version, true)
 		if diags.HasError() {
 			return nil, diags
 		}
 
-		fleetClient, diags := newFleetApiClient(d, "kibana", version)
+		kibanaClient, diags := newKibanaApiClient(d, version)
 		if diags.HasError() {
 			return nil, diags
 		}
 
-		apiClient.fleet = fleetClient
-		return apiClient, diag.Diagnostics{}
+		return &ApiClient{es: esClient, kibana: kibanaClient, version: version}, nil
 	}
 }
 
@@ -101,19 +101,35 @@ func NewAcceptanceTestingClient() (*ApiClient, error) {
 		return nil, err
 	}
 
-	return &ApiClient{es, nil, "acceptance-testing"}, nil
+	// TODO:
+	_, insecure := os.LookupEnv("KIBANA_INSECURE")
+	kibana := kibana.NewClient(kibana.Config{
+		URL:      os.Getenv("KIBANA_ENDPOINTS"),
+		Username: os.Getenv("KIBANA_USERNAME"),
+		Password: os.Getenv("KIBANA_PASSWORD"),
+		APIKey:   os.Getenv("KIBANA_APIKEY"),
+		Insecure: insecure,
+	})
+
+	return &ApiClient{es, kibana, "acceptance-testing"}, nil
 }
 
-const esConnectionKey string = "elasticsearch_connection"
+const (
+	esConnectionKey = "elasticsearch_connection"
+)
 
 func NewApiClient(d *schema.ResourceData, meta interface{}) (*ApiClient, diag.Diagnostics) {
-	defaultClient := meta.(*ApiClient)
+	defaultClient := *meta.(*ApiClient)
 
 	if _, ok := d.GetOk(esConnectionKey); ok {
-		return newEsApiClient(d, esConnectionKey, defaultClient.version, false)
+		es, diag := newEsApiClient(d, esConnectionKey, defaultClient.version, false)
+		if diag.HasError() {
+			return nil, diag
+		}
+		defaultClient.es = es
 	}
 
-	return defaultClient, nil
+	return &defaultClient, nil
 }
 
 func ensureTLSClientConfig(config *elasticsearch.Config) *tls.Config {
@@ -130,8 +146,8 @@ func (a *ApiClient) GetESClient() *elasticsearch.Client {
 	return a.es
 }
 
-func (a *ApiClient) GetFleetClient() *fleet.FleetClient {
-	return a.fleet
+func (a *ApiClient) GetKibanaClient() *kibana.Client {
+	return a.kibana
 }
 
 func (a *ApiClient) ID(ctx context.Context, resourceId string) (*CompositeId, diag.Diagnostics) {
@@ -197,7 +213,7 @@ func (a *ApiClient) ClusterID(ctx context.Context) (*string, diag.Diagnostics) {
 	return nil, diags
 }
 
-func newEsApiClient(d *schema.ResourceData, key string, version string, useEnvAsDefault bool) (*ApiClient, diag.Diagnostics) {
+func newEsApiClient(d *schema.ResourceData, key string, version string, useEnvAsDefault bool) (*elasticsearch.Client, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	config := elasticsearch.Config{}
 	config.Header = http.Header{"User-Agent": []string{fmt.Sprintf("elasticstack-terraform-provider/%s", version)}}
@@ -316,21 +332,27 @@ func newEsApiClient(d *schema.ResourceData, key string, version string, useEnvAs
 		es.Transport = newDebugTransport("elasticsearch", es.Transport)
 	}
 
-	return &ApiClient{es, nil, version}, diags
+	return es, diags
 }
 
-func newFleetApiClient(d *schema.ResourceData, providerKey, version string) (*fleet.FleetClient, diag.Diagnostics) {
-	var diags diag.Diagnostics
-	config := fleet.KibanaConfig{}
-	config.Header = http.Header{"User-Agent": []string{fmt.Sprintf("elasticstack-terraform-provider/%s", version)}}
+func newKibanaApiClient(d *schema.ResourceData, version string) (*kibana.Client, diag.Diagnostics) {
+	// TODO: Is version param needed?
+	const providerName = "kibana"
 
-	if connSchema, ok := d.GetOk(providerKey); ok {
+	var diags diag.Diagnostics
+	config := kibana.Config{
+		Header: http.Header{"User-Agent": []string{fmt.Sprintf("elasticstack-terraform-provider/%s", providerName)}},
+	}
+
+	if connSchema, ok := d.GetOk(providerName); ok {
 		// if defined, then we only have a single entry
 		if es := connSchema.([]interface{})[0]; es != nil {
 			kibanaConfig := es.(map[string]interface{})
+			tflog.Error(context.Background(), spew.Sdump(kibanaConfig))
 
-			if url, ok := kibanaConfig["url"]; ok {
-				config.URL = url.(string)
+			if urls, ok := kibanaConfig["endpoints"]; ok {
+				// TODO: Make client support multiple endpoints.
+				config.URL = urls.(string)
 			}
 			if username, ok := kibanaConfig["username"]; ok {
 				config.Username = username.(string)
@@ -341,13 +363,13 @@ func newFleetApiClient(d *schema.ResourceData, providerKey, version string) (*fl
 			if apikey, ok := kibanaConfig["api_key"]; ok {
 				config.APIKey = apikey.(string)
 			}
+			if v, ok := kibanaConfig["insecure"]; ok {
+				config.Insecure = v.(bool)
+			}
+
+			// TODO: Pass through all the TLS options.
 		}
 	}
 
-	client, err := fleet.NewFleetClient(config)
-	if err != nil {
-		return nil, diag.FromErr(err)
-	}
-
-	return client, diags
+	return kibana.NewClient(config), diags
 }

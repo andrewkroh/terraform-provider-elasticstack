@@ -35,7 +35,7 @@ func CheckError(res *esapi.Response, errMsg string) diag.Diagnostics {
 	return diags
 }
 
-// Compares the JSON in two byte slices
+// JSONBytesEqual compares the JSON in two byte slices.
 func JSONBytesEqual(a, b []byte) (bool, error) {
 	var j, j2 interface{}
 	if err := json.Unmarshal(a, &j); err != nil {
@@ -51,8 +51,10 @@ func MapsEqual(m1, m2 interface{}) bool {
 	return reflect.DeepEqual(m2, m1)
 }
 
-// Flattens the multilevel map, and concatenates keys together with dot "."
+// FlattenMap flattens the multilevel map and concatenates keys together with dot (".").
+//
 // # Examples
+//
 // map of form:
 //
 //	map := map[string]interface{}{
@@ -123,10 +125,10 @@ func IsEmpty(v interface{}) bool {
 
 const connectionKeyName = "elasticsearch_connection"
 
-// Returns the common connection schema for all the Elasticsearch resources,
+// AddConnectionSchema returns the common connection schema for all the Elasticsearch resources,
 // which defines the fields which can be used to configure the API access
 func AddConnectionSchema(providedSchema map[string]*schema.Schema) {
-	providedSchema[connectionKeyName] = providerSchema.GetConnectionSchema(connectionKeyName, false)
+	providedSchema[connectionKeyName] = providerSchema.GetElasticsearchConnectionSchema(connectionKeyName, false)
 }
 
 func StringToHash(s string) (*string, error) {

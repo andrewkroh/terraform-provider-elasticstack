@@ -27,8 +27,8 @@ func New(version string) *schema.Provider {
 	p := &schema.Provider{
 
 		Schema: map[string]*schema.Schema{
-			esKeyName:     providerSchema.GetConnectionSchema(esKeyName, true),
-			kibanaKeyName: providerSchema.GetConnectionSchema(kibanaKeyName, true),
+			esKeyName:     providerSchema.GetElasticsearchConnectionSchema(esKeyName, true),
+			kibanaKeyName: providerSchema.GetKibanaConnectionSchema(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"elasticstack_elasticsearch_ingest_processor_append":            ingest.DataSourceProcessorAppend(),
@@ -91,7 +91,6 @@ func New(version string) *schema.Provider {
 			"elasticstack_elasticsearch_snapshot_lifecycle":    cluster.ResourceSlm(),
 			"elasticstack_elasticsearch_snapshot_repository":   cluster.ResourceSnapshotRepository(),
 			"elasticstack_elasticsearch_script":                cluster.ResourceScript(),
-			"elasticstack_kibana_fleet_enrollment_api_key":     fleet.EnrollmentAPIKey(),
 			"elasticstack_kibana_fleet_agent_policy":           fleet.AgentPolicy(),
 			"elasticstack_kibana_fleet_package_policy":         fleet.PackagePolicy(),
 		},

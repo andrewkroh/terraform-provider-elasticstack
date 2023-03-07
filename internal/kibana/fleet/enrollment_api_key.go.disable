@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func EnrollmentAPIKey() *schema.Resource {
+func DataSourceEnrollmentAPIKey() *schema.Resource {
 	enrollmentApiKeySchema := map[string]*schema.Schema{
 		"policy_id": {
 			Description: "Identifier for the stored script. Must be unique within the cluster.",
